@@ -1,0 +1,38 @@
+# macOS
+.DS_Store
+
+# VS Code
+.vscode/
+.history/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# pgAdmin / local exported junk
+*.bak
+
+# Node
+node_modules/
+
+# System / misc
+Thumbs.db

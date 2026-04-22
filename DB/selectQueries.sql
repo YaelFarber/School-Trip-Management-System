@@ -49,6 +49,12 @@ FROM STUDENTS s
 JOIN CLASSES c ON s.c_id = c.c_id;
 
 
+-- get all classes
+CREATE VIEW all_classes AS
+SELECT c_id, c_name AS class_name
+FROM CLASSES
+
+
 -- get students of teacher
 PREPARE get_students_of_teacher(CHAR) AS
 SELECT 
@@ -62,3 +68,13 @@ JOIN TEACHERS t ON t.c_id = c.c_id
 WHERE t.t_id_number = $1;
 
 EXECUTE get_students_of_teacher('123456789');
+
+-- get class id
+PREPARE get_class_id(CHAR) AS
+SELECT c_id, c_name AS class_name
+FROM CLASSES
+WHERE c_name = $1;
+
+EXECUTE get_class_id('6th grade 1');
+
+

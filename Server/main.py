@@ -1,14 +1,22 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, constr
+from fastapi.middleware.cors import CORSMiddleware
 import psycopg2
 import psycopg2.extras
 from dotenv import load_dotenv
 import os
 
-
 load_dotenv()
 
 app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Database settings
 DB_HOST = os.getenv("DB_HOST")
@@ -28,38 +36,44 @@ def get_connection():
     )
 
 
+# ------------------------------------------------------
 
 # Pydantic models
+
 class StudentCreate(BaseModel):
     student_name: str
     student_id_number: constr(pattern=r'^\d{9}$')
     class_id: int
-    
+
+
 class TeacherCreate(BaseModel):
     teacher_name: str
     teacher_id_number: constr(pattern=r'^\d{9}$')
     class_id: int
 
+
 class ClassCreate(BaseModel):
-    class_id: int
+    class_name: str
+
 
 class LoginRequest(BaseModel):
     id_number: constr(pattern=r'^\d{9}$')
 
 
-#-----------------------------------------------------------------------------
+# ------------------------------------------------------
 
-# Home route
+# Home
 @app.get("/")
 def home():
     return {"message": "School Trip Management System API is running"}
 
-# Login route
+
+# Login
 @app.post("/login")
 def login(request: LoginRequest):
     conn = None
     cur = None
-    
+
     try:
         conn = get_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -72,13 +86,18 @@ def login(request: LoginRequest):
             """,
             (request.id_number,)
         )
-        class_row = cur.fetchone()
-        if not class_row:
+
+        teacher_row = cur.fetchone()
+        if not teacher_row:
             raise HTTPException(status_code=401, detail="Only teachers are allowed to login")
 
-        return {"message": "Login successful"}
+        return {
+            "message": "Login successful",
+            "teacher_id_number": request.id_number
+        }
 
-
+    except HTTPException:
+        raise
     except Exception as e:
         if conn:
             conn.rollback()
@@ -91,11 +110,11 @@ def login(request: LoginRequest):
             conn.close()
 
 
-   
+# ------------------------------------------------------
 
-#-----------------------------------------------------------------------------
+# Students
 
-# CREATE/POST student
+# create new student
 @app.post("/student")
 def create_student(student: StudentCreate):
     conn = None
@@ -104,20 +123,20 @@ def create_student(student: StudentCreate):
     try:
         conn = get_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-        
+
         cur.execute(
             """
-            SELECT c_id, class_name
+            SELECT c_id, c_name
             FROM classes
             WHERE c_id = %s
             """,
             (student.class_id,)
         )
-        class_row = cur.fetchone()
 
+        class_row = cur.fetchone()
         if not class_row:
             raise HTTPException(status_code=400, detail="Class does not exist")
-        
+
         cur.execute(
             """
             INSERT INTO students (s_name, s_id_number, c_id)
@@ -131,6 +150,10 @@ def create_student(student: StudentCreate):
         conn.commit()
         return new_student
 
+    except HTTPException:
+        if conn:
+            conn.rollback()
+        raise
     except Exception as e:
         if conn:
             conn.rollback()
@@ -143,8 +166,7 @@ def create_student(student: StudentCreate):
             conn.close()
 
 
-
-# GET all students
+# get all students
 @app.get("/students")
 def get_students():
     conn = None
@@ -154,14 +176,18 @@ def get_students():
         conn = get_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-        cur.execute("""
-            SELECT 
+        cur.execute(
+            """
+            SELECT
                 s.s_id AS student_id,
                 s.s_name AS student_name,
+                s.s_id_number AS student_id_number,
+                c.c_id AS class_id,
                 c.c_name AS class_name
-            FROM STUDENTS s
-            JOIN CLASSES c ON s.c_id = c.c_id;
-        """)
+            FROM students s
+            JOIN classes c ON s.c_id = c.c_id;
+            """
+        )
 
         return cur.fetchall()
 
@@ -174,9 +200,7 @@ def get_students():
         if conn:
             conn.close()
 
-
-
-# GET specific student by id
+# get student by id
 @app.get("/students/{student_id}")
 def get_student(student_id: str):
     conn = None
@@ -186,14 +210,29 @@ def get_student(student_id: str):
         conn = get_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-        cur.execute("""
-            SELECT *
-            FROM STUDENTS
-            WHERE s_id_number = %s;
-        """, (student_id,))
+        cur.execute(
+            """
+            SELECT
+                s.s_id AS student_id,
+                s.s_name AS student_name,
+                s.s_id_number AS student_id_number,
+                c.c_id AS class_id,
+                c.c_name AS class_name
+            FROM students s
+            JOIN classes c ON s.c_id = c.c_id
+            WHERE s.s_id_number = %s;
+            """,
+            (student_id,)
+        )
 
-        return cur.fetchall()
+        student = cur.fetchone()
+        if not student:
+            raise HTTPException(status_code=404, detail="Student not found")
 
+        return student
+
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -204,13 +243,13 @@ def get_student(student_id: str):
             conn.close()
 
 
+# ------------------------------------------------------
 
+# Classes
 
-#-----------------------------------------------------------------------------
-
-# CREATE/POST class
+# create new class
 @app.post("/class")
-def create_class(classes: ClassCreate):
+def create_class(class_data: ClassCreate):
     conn = None
     cur = None
 
@@ -220,22 +259,28 @@ def create_class(classes: ClassCreate):
 
         cur.execute(
             """
-            INSERT INTO classes (class_id)
+            INSERT INTO classes (c_name)
             VALUES (%s)
             RETURNING c_id, c_name;
             """,
-            (classes.class_id,)
+            (class_data.class_name,)
         )
 
         new_class = cur.fetchone()
         conn.commit()
-        return new_class
+
+        return {
+            "message": "Class created",
+            "class": {
+                "id": new_class["c_id"],
+                "name": new_class["c_name"]
+            }
+        }
 
     except HTTPException:
         if conn:
             conn.rollback()
         raise
-
     except Exception as e:
         if conn:
             conn.rollback()
@@ -248,8 +293,7 @@ def create_class(classes: ClassCreate):
             conn.close()
 
 
-
-# GET all classes
+# get all classes
 @app.get("/classes")
 def get_classes():
     conn = None
@@ -262,7 +306,8 @@ def get_classes():
         cur.execute(
             """
             SELECT c_id, c_name AS class_name
-            FROM CLASSES
+            FROM classes
+            ORDER BY c_id;
             """
         )
 
@@ -278,10 +323,11 @@ def get_classes():
             conn.close()
 
 
-#-----------------------------------------------------------------------------
+# ------------------------------------------------------
 
+# Teachers
 
-# CREATE/POST teacher
+# create new teacher
 @app.post("/teacher")
 def create_teacher(teacher: TeacherCreate):
     conn = None
@@ -290,10 +336,10 @@ def create_teacher(teacher: TeacherCreate):
     try:
         conn = get_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-
+        # Check if class exists
         cur.execute(
             """
-            SELECT c_id, class_name
+            SELECT c_id, c_name
             FROM classes
             WHERE c_id = %s
             """,
@@ -304,6 +350,23 @@ def create_teacher(teacher: TeacherCreate):
         if not class_row:
             raise HTTPException(status_code=400, detail="Class does not exist")
         
+        # Check if class already has a teacher
+        cur.execute(
+            """
+            SELECT t_id, t_name, t_id_number
+            FROM teachers
+            WHERE c_id = %s
+            """,
+            (teacher.class_id,)
+        )
+        existing_teacher = cur.fetchone()
+
+        if existing_teacher:
+            raise HTTPException(
+                status_code=400,
+                detail="This class already has a teacher"
+            )
+
         cur.execute(
             """
             INSERT INTO teachers (t_name, t_id_number, c_id)
@@ -317,6 +380,10 @@ def create_teacher(teacher: TeacherCreate):
         conn.commit()
         return new_teacher
 
+    except HTTPException:
+        if conn:
+            conn.rollback()
+        raise
     except Exception as e:
         if conn:
             conn.rollback()
@@ -330,7 +397,7 @@ def create_teacher(teacher: TeacherCreate):
 
 
 
-# GET all teachers
+# get all teachers
 @app.get("/teachers")
 def get_teachers():
     conn = None
@@ -342,13 +409,16 @@ def get_teachers():
 
         cur.execute(
             """
-            SELECT 
+            SELECT
                 t.t_id AS teacher_id,
                 t.t_name AS teacher_name,
+                t.t_id_number AS teacher_id_number,
+                c.c_id AS class_id,
                 c.c_name AS class_name
-            FROM TEACHERS t
-J           OIN CLASSES c ON t.c_id = c.c_id;
-            """)
+            FROM teachers t
+            JOIN classes c ON t.c_id = c.c_id;
+            """
+        )
 
         return cur.fetchall()
 
@@ -362,9 +432,7 @@ J           OIN CLASSES c ON t.c_id = c.c_id;
             conn.close()
 
 
-
-
-# GET specific teacher by id
+# get teacher by id
 @app.get("/teachers/{teacher_id}")
 def get_teacher(teacher_id: str):
     conn = None
@@ -374,14 +442,29 @@ def get_teacher(teacher_id: str):
         conn = get_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
-        cur.execute("""
-            SELECT *
-            FROM TEACHERS
-            WHERE t_id_number = %s;
-        """, (teacher_id,))
+        cur.execute(
+            """
+            SELECT
+                t.t_id AS teacher_id,
+                t.t_name AS teacher_name,
+                t.t_id_number AS teacher_id_number,
+                c.c_id AS class_id,
+                c.c_name AS class_name
+            FROM teachers t
+            JOIN classes c ON t.c_id = c.c_id
+            WHERE t.t_id_number = %s;
+            """,
+            (teacher_id,)
+        )
 
-        return cur.fetchall()
+        teacher = cur.fetchone()
+        if not teacher:
+            raise HTTPException(status_code=404, detail="Teacher not found")
 
+        return teacher
+
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -392,10 +475,9 @@ def get_teacher(teacher_id: str):
             conn.close()
 
 
+# ------------------------------------------------------
 
-#-----------------------------------------------------------------------------
-
-# GET all students and teachers
+# get all school members
 @app.get("/students_and_teachers")
 def get_students_and_teachers():
     conn = None
@@ -407,19 +489,25 @@ def get_students_and_teachers():
 
         cur.execute(
             """
-            SELECT t_name AS full_name,
-                t_id_number AS id_number, 
-	            c_name AS class_name,
-	            'Teacher' AS type
-            FROM TEACHERS t
-            JOIN CLASSES c ON t.c_id = c.c_id
+            SELECT
+                t.t_name AS full_name,
+                t.t_id_number AS id_number,
+                c.c_name AS class_name,
+                'Teacher' AS type
+            FROM teachers t
+            JOIN classes c ON t.c_id = c.c_id
 
             UNION
 
-            SELECT s_name, s_id_number, c_name, 'Student' AS type
-            FROM STUDENTS s
-            JOIN CLASSES c ON s.c_id = c.c_id;
-            """)
+            SELECT
+                s.s_name AS full_name,
+                s.s_id_number AS id_number,
+                c.c_name AS class_name,
+                'Student' AS type
+            FROM students s
+            JOIN classes c ON s.c_id = c.c_id;
+            """
+        )
 
         return cur.fetchall()
 
@@ -433,8 +521,7 @@ def get_students_and_teachers():
             conn.close()
 
 
-
-# GET all students who learns under a specific teacher
+# get all students of one teacher by teacher id
 @app.get("/teachers/{teacher_id}/students")
 def get_students_of_teacher(teacher_id: str):
     conn = None
@@ -443,12 +530,14 @@ def get_students_of_teacher(teacher_id: str):
     try:
         conn = get_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
         cur.execute(
             """
-            SELECT 
-                s.s_id,
-                s.s_name,
-                s.s_id_number,
+            SELECT
+                s.s_id AS student_id,
+                s.s_name AS student_name,
+                s.s_id_number AS student_id_number,
+                c.c_id AS class_id,
                 c.c_name AS class_name
             FROM students s
             JOIN classes c ON s.c_id = c.c_id
@@ -461,8 +550,11 @@ def get_students_of_teacher(teacher_id: str):
         students = cur.fetchall()
         if not students:
             raise HTTPException(status_code=404, detail="No students assigned to this teacher")
+
         return students
-    
+
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

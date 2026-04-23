@@ -36,3 +36,8 @@ node_modules/
 
 # System / misc
 Thumbs.db
+
+# Environment variables
+.env
+.env.*
+!.env.example

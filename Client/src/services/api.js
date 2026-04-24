@@ -120,3 +120,9 @@ export async function getAllClasses() {
     return handleResponse(response, "Classes retrieval failed");
 }
 
+// get latest locations of the logged-in teacher's students
+export async function getTeacherStudentLocations(teacher_id) {
+    const response = await fetch(`${URL}/teachers/${teacher_id}/locations`);
+
+    return handleResponse(response, "Teacher's student locations retrieval failed");
+}

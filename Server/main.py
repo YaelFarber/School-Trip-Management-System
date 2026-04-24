@@ -5,6 +5,7 @@ import psycopg2
 import psycopg2.extras
 from dotenv import load_dotenv
 import os
+from datetime import datetime, timezone
 
 load_dotenv()
 
@@ -59,7 +60,36 @@ class ClassCreate(BaseModel):
 class LoginRequest(BaseModel):
     id_number: constr(pattern=r'^\d{9}$')
 
+class DMSCoordinate(BaseModel):
+    Degrees: str
+    Minutes: str
+    Seconds: str | None = None
 
+
+class Coordinates(BaseModel):
+    Longitude: DMSCoordinate
+    Latitude: DMSCoordinate
+
+
+class LocationCreate(BaseModel):
+    ID: constr(pattern=r'^\d{9}$')
+    Coordinates: Coordinates
+    Time: str
+# ------------------------------------------------------
+
+# Helpers
+
+def dms_to_decimal(coord: DMSCoordinate):
+    degrees = float(coord.Degrees)
+    minutes = float(coord.Minutes)
+    seconds = float(coord.Seconds) if coord.Seconds else 0.0
+
+    return degrees + minutes / 60 + seconds / 3600
+
+
+def parse_location_time(raw_time: str):
+    dt = datetime.strptime(raw_time, "%Y %m %dT%H:%M:%SZ")
+    return dt.replace(tzinfo=timezone.utc)
 # ------------------------------------------------------
 
 # Home
@@ -556,6 +586,109 @@ def get_students_of_teacher(teacher_id: str):
 
     except HTTPException:
         raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+
+# ------------------------------------------------------
+
+# create new location for student
+@app.post("/locations")
+def create_location(location: LocationCreate):
+    conn = None
+    cur = None
+
+    try:
+        longitude = dms_to_decimal(location.Coordinates.Longitude)
+        latitude = dms_to_decimal(location.Coordinates.Latitude)
+        at_time = parse_location_time(location.Time)
+
+        conn = get_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        cur.execute(
+            """
+            SELECT s_id_number
+            FROM students
+            WHERE s_id_number = %s;
+            """,
+            (location.ID,)
+        )
+
+        student = cur.fetchone()
+        if not student:
+            raise HTTPException(status_code=404, detail="Student not found")
+
+        cur.execute(
+            """
+            INSERT INTO locations (longitude, latitude, at_time, s_id_number)
+            VALUES (%s, %s, %s, %s)
+            RETURNING l_id, longitude, latitude, at_time, s_id_number;
+            """,
+            (longitude, latitude, at_time, location.ID)
+        )
+
+        new_location = cur.fetchone()
+        conn.commit()
+
+        return {
+            "message": "Location saved",
+            "location": new_location
+        }
+
+    except HTTPException:
+        if conn:
+            conn.rollback()
+        raise
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+
+# get all latest locations of the students of the logged in teacher
+@app.get("/teachers/{teacher_id}/locations")
+def get_latest_locations_of_my_students(teacher_id: str):
+    conn = None
+    cur = None
+
+    try:
+        conn = get_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        cur.execute(
+            """
+            SELECT DISTINCT ON (s.s_id_number)
+                s.s_id AS student_id,
+                s.s_name AS student_name,
+                c.c_name AS class_name,
+                l.longitude,
+                l.latitude,
+                l.at_time
+            FROM students s
+            JOIN classes c ON s.c_id = c.c_id
+            JOIN teachers t ON t.c_id = c.c_id
+            JOIN locations l ON l.s_id_number = s.s_id_number
+            WHERE t.t_id_number = %s
+            ORDER BY s.s_id_number, l.at_time DESC;
+            """,
+            (teacher_id,)
+        )
+
+        return cur.fetchall()
+
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

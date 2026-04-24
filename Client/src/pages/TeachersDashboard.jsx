@@ -3,7 +3,7 @@ import { getStudentsByTeacher } from "../services/api";
 
 export default function TeachersDashboard() {
   const [students, setStudents] = useState([]);
-  const [teacherId, setTeacherId] = useState("");
+  const [teacherInfo, setTeacherInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -16,7 +16,7 @@ export default function TeachersDashboard() {
     setError("");
 
     try {
-      const teacher = JSON.parse(localStorage.getItem("teacher"));
+      const teacher = JSON.parse(sessionStorage.getItem("teacher"));
 
       if (!teacher || !teacher.teacher_id_number) {
         setError("No logged in teacher found.");
@@ -24,7 +24,7 @@ export default function TeachersDashboard() {
         return;
       }
 
-      setTeacherId(teacher.teacher_id_number);
+      setTeacherInfo(teacher);
       const data = await getStudentsByTeacher(teacher.teacher_id_number);
       setStudents(data);
     } catch (err) {
@@ -37,8 +37,8 @@ export default function TeachersDashboard() {
   return (
     <div className="page page-lg">
       <h1 className="page-title">My Students</h1>
-      <p className="page-subtitle">Teacher ID: {teacherId || "-"}</p>
-
+      <p className="page-subtitle">Wellcome {teacherInfo?.teacher_name || "-"}! <br/><br/>ID:{teacherInfo?.teacher_id_number || "-"}</p>
+      
       {loading && <p>Loading students...</p>}
       {error && <p className="text-error">{error}</p>}
 

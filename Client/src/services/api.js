@@ -27,7 +27,7 @@ export async function login(teacher_id) {
     });
 
     const res = await handleResponse(response, 'Login failed');
-    localStorage.setItem("teacher", JSON.stringify(res));
+    sessionStorage.setItem("teacher", JSON.stringify(res));
     return res;
 }
 

@@ -4,7 +4,7 @@ export default function TeacherLayout() {
   const navigate = useNavigate();
 
   function handleLogout() {
-    localStorage.removeItem("teacher");
+    sessionStorage.removeItem("teacher");
     navigate("/");
   }
 
@@ -57,25 +57,7 @@ export default function TeacherLayout() {
               isActive ? "nav-link active" : "nav-link"
             }
           >
-            Teachers + Students
-          </NavLink>
-
-          <NavLink
-            to="/signin"
-            className={({ isActive }) =>
-              isActive ? "nav-link active" : "nav-link"
-            }
-          >
-            Register Student
-          </NavLink>
-
-          <NavLink
-            to="/signin"
-            className={({ isActive }) =>
-              isActive ? "nav-link active" : "nav-link"
-            }
-          >
-            Register Teacher
+            All School Members
           </NavLink>
 
           <NavLink

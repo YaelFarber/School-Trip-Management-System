@@ -79,12 +79,12 @@ def login(request: LoginRequest):
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
 
         cur.execute(
-            """
-            SELECT 1
-            FROM teachers
-            WHERE t_id_number = %s
-            """,
-            (request.id_number,)
+        """
+        SELECT t_name, t_id_number
+        FROM teachers
+        WHERE t_id_number = %s
+        """,
+        (request.id_number,)
         )
 
         teacher_row = cur.fetchone()
@@ -93,7 +93,8 @@ def login(request: LoginRequest):
 
         return {
             "message": "Login successful",
-            "teacher_id_number": request.id_number
+            "teacher_name": teacher_row["t_name"],
+            "teacher_id_number": teacher_row["t_id_number"]
         }
 
     except HTTPException:

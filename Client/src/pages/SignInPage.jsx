@@ -88,6 +88,10 @@ export default function SignInPage() {
 
   return (
     <div className="page-center">
+      <button type="button" onClick={() => navigate("/")} className="btn btn-secondary" style={{ left: 10, top: 10, position: "absolute" }}>
+         Home
+      </button>
+      
       <form onSubmit={handleSubmit} className="card form-card">
         <h2 className="page-title">Sign In</h2>
 

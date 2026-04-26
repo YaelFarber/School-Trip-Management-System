@@ -10,7 +10,9 @@ INSERT INTO STUDENTS (s_name, s_id_number, c_id) VALUES
 ('Chavi Cohen', '954565578', 1),
 ('Tali Levi', '346687333', 2),
 ('Hadas Cohen', '065542678', 2),
-('Lea Levi', '963632890', 2);
+('Lea Levi', '963632890', 2),
+('Tova F.', '988563231', 1),
+('Hadassa Mizrachi', '844264338', 2);
 
 
 -- TEACHERS

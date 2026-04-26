@@ -1,13 +1,13 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, constr
 from fastapi.middleware.cors import CORSMiddleware
 import psycopg2
 import psycopg2.extras
 from dotenv import load_dotenv
 import os
 
+
+from pydantic import BaseModel, StringConstraints
 from typing import Annotated
-from pydantic import StringConstraints
 from datetime import datetime, timezone
 from math import radians, sin, cos, acos
 
@@ -68,20 +68,22 @@ class LoginRequest(BaseModel):
     id_number: IDNumber
 
 class DMSCoordinate(BaseModel):
-    Degrees: str
-    Minutes: str
-    Seconds: str | None = None
+    degrees: str
+    minutes: str
+    seconds: str
 
 
 class Coordinates(BaseModel):
-    Longitude: DMSCoordinate
-    Latitude: DMSCoordinate
+    longitude: DMSCoordinate
+    latitude: DMSCoordinate
 
 
 class LocationCreate(BaseModel):
-    ID: IDNumber
-    Coordinates: Coordinates
-    Time: str
+    id: IDNumber
+    coordinates: Coordinates
+    time: str
+
+
 # ------------------------------------------------------
 
 # Helpers
@@ -89,35 +91,34 @@ class LocationCreate(BaseModel):
 def check_id_number_is_unique(cur, id_number: str):
     cur.execute(
         """
-        SELECT id_number
-        FROM (
-            SELECT s_id_number AS id_number FROM students
-            UNION
-            SELECT t_id_number AS id_number FROM teachers
-        ) all_ids
-        WHERE id_number = %s;
+        SELECT 1
+        WHERE EXISTS (
+            SELECT 1 FROM students WHERE s_id_number = %s
+        )
+        OR EXISTS (
+            SELECT 1 FROM teachers WHERE t_id_number = %s
+        );
         """,
-        (id_number,)
+        (id_number, id_number)
     )
 
-    existing_id = cur.fetchone()
-
-    if existing_id:
+    if cur.fetchone():
         raise HTTPException(
             status_code=400,
             detail="This ID number already exists in the system"
         )
+    
 
 def dms_to_decimal(coord: DMSCoordinate):
-    degrees = float(coord.Degrees)
-    minutes = float(coord.Minutes)
-    seconds = float(coord.Seconds) if coord.Seconds else 0.0
+    degrees = float(coord.degrees)
+    minutes = float(coord.minutes)
+    seconds = float(coord.seconds)
 
     return degrees + minutes / 60 + seconds / 3600
 
 
 def parse_location_time(raw_time: str):
-    dt = datetime.strptime(raw_time, "%Y %m %dT%H:%M:%SZ")
+    dt = datetime.strptime(raw_time, "%Y-%m-%dT%H:%M:%SZ")
     return dt.replace(tzinfo=timezone.utc)
 
 
@@ -172,9 +173,7 @@ def login(request: LoginRequest):
 
     except HTTPException:
         raise
-    except Exception as e:
-        if conn:
-            conn.rollback()
+    except Exception:
         raise HTTPException(status_code=500, detail="Server error. Please try again later.")
 
     finally:
@@ -230,10 +229,10 @@ def create_student(student: StudentCreate):
         if conn:
             conn.rollback()
         raise
-    except Exception as e:
+    except Exception:
         if conn:
             conn.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Server error. Please try again later.")
 
     finally:
         if cur:
@@ -268,8 +267,8 @@ def get_students():
 
         return cur.fetchall()
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Server error. Please try again later.")
 
     finally:
         if cur:
@@ -279,7 +278,7 @@ def get_students():
 
 # get student by id
 @app.get("/students/{student_id}")
-def get_student(student_id: str):
+def get_student(student_id: IDNumber):
     conn = None
     cur = None
 
@@ -310,8 +309,8 @@ def get_student(student_id: str):
 
     except HTTPException:
         raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Server error. Please try again later.")
 
     finally:
         if cur:
@@ -354,15 +353,10 @@ def create_class(class_data: ClassCreate):
             }
         }
 
-    except HTTPException:
+    except Exception:
         if conn:
             conn.rollback()
-        raise
-    except Exception as e:
-        if conn:
-            conn.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-
+        raise HTTPException(status_code=500, detail="Server error. Please try again later.")
     finally:
         if cur:
             cur.close()
@@ -390,8 +384,8 @@ def get_classes():
 
         return cur.fetchall()
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Server error. Please try again later.")
 
     finally:
         if cur:
@@ -463,10 +457,10 @@ def create_teacher(teacher: TeacherCreate):
         if conn:
             conn.rollback()
         raise
-    except Exception as e:
+    except Exception:
         if conn:
             conn.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Server error. Please try again later.")
 
     finally:
         if cur:
@@ -502,8 +496,8 @@ def get_teachers():
 
         return cur.fetchall()
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Server error. Please try again later.")
 
     finally:
         if cur:
@@ -514,7 +508,7 @@ def get_teachers():
 
 # get teacher by id
 @app.get("/teachers/{teacher_id}")
-def get_teacher(teacher_id: str):
+def get_teacher(teacher_id: IDNumber):
     conn = None
     cur = None
 
@@ -545,8 +539,8 @@ def get_teacher(teacher_id: str):
 
     except HTTPException:
         raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Server error. Please try again later.")
 
     finally:
         if cur:
@@ -593,8 +587,8 @@ def get_students_and_teachers():
 
         return cur.fetchall()
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Server error. Please try again later.")
 
     finally:
         if cur:
@@ -605,7 +599,7 @@ def get_students_and_teachers():
 
 # get all students of one teacher by teacher id
 @app.get("/teachers/{teacher_id}/students")
-def get_students_of_teacher(teacher_id: str):
+def get_students_of_teacher(teacher_id: IDNumber):
     conn = None
     cur = None
 
@@ -631,15 +625,10 @@ def get_students_of_teacher(teacher_id: str):
         )
 
         students = cur.fetchall()
-        if not students:
-            raise HTTPException(status_code=404, detail="No students assigned to this teacher")
-
         return students
 
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Server error. Please try again later.")
 
     finally:
         if cur:
@@ -657,9 +646,9 @@ def create_location(location: LocationCreate):
     cur = None
 
     try:
-        longitude = dms_to_decimal(location.Coordinates.Longitude)
-        latitude = dms_to_decimal(location.Coordinates.Latitude)
-        at_time = parse_location_time(location.Time)
+        longitude = dms_to_decimal(location.coordinates.longitude)
+        latitude = dms_to_decimal(location.coordinates.latitude)
+        at_time = parse_location_time(location.time)
 
         conn = get_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
@@ -670,7 +659,7 @@ def create_location(location: LocationCreate):
             FROM students
             WHERE s_id_number = %s;
             """,
-            (location.ID,)
+            (location.id,)
         )
 
         student = cur.fetchone()
@@ -683,7 +672,7 @@ def create_location(location: LocationCreate):
             VALUES (%s, %s, %s, %s)
             RETURNING l_id, longitude, latitude, at_time, s_id_number;
             """,
-            (longitude, latitude, at_time, location.ID)
+            (longitude, latitude, at_time, location.id)
         )
 
         new_location = cur.fetchone()
@@ -698,10 +687,10 @@ def create_location(location: LocationCreate):
         if conn:
             conn.rollback()
         raise
-    except Exception as e:
+    except Exception:
         if conn:
             conn.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Server error. Please try again later.")
 
     finally:
         if cur:
@@ -712,7 +701,7 @@ def create_location(location: LocationCreate):
 
 # get all latest locations of the students of the logged in teacher
 @app.get("/teachers/{teacher_id}/locations")
-def get_latest_locations_of_my_students(teacher_id: str):
+def get_latest_locations_of_my_students(teacher_id: IDNumber):
     conn = None
     cur = None
 
@@ -741,8 +730,8 @@ def get_latest_locations_of_my_students(teacher_id: str):
 
         return cur.fetchall()
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Server error. Please try again later.")
 
     finally:
         if cur:
@@ -753,7 +742,7 @@ def get_latest_locations_of_my_students(teacher_id: str):
 
 # get all students that got more than 3km away
 @app.get("/teachers/{teacher_id}/far-students")
-def get_far_students(teacher_id: str, max_km: float = 3):
+def get_far_students(teacher_id: IDNumber, max_km: float = 3):
     conn = None
     cur = None
 
@@ -804,8 +793,8 @@ def get_far_students(teacher_id: str, max_km: float = 3):
 
         return result
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+    except Exception:
+        raise HTTPException(status_code=500, detail="Server error. Please try again later.")
 
     finally:
         if cur:

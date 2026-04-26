@@ -36,9 +36,14 @@ export default function SignInPage() {
 
   function handleChange(e) {
     const { name, value } = e.target;
+
+    const newValue = name === "id"
+      ? value.replace(/\D/g, "")
+      : value;
+
     setFormData((prev) => ({
       ...prev,
-      [name]: value,
+      [name]: newValue,
     }));
   }
 

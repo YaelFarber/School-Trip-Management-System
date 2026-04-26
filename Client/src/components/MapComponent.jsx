@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -23,14 +24,16 @@ const farMarkerIcon = new L.Icon({
 function FitBounds({ locations }) {
   const map = useMap();
 
-  if (!locations || locations.length === 0) return null;
+  useEffect(() => {
+    if (!locations || locations.length === 0) return;
 
-  const bounds = locations.map((s) => [
-    Number(s.latitude),
-    Number(s.longitude),
-  ]);
+    const bounds = locations.map((s) => [
+      Number(s.latitude),
+      Number(s.longitude),
+    ]);
 
-  map.fitBounds(bounds, { padding: [50, 50] });
+    map.fitBounds(bounds, { padding: [50, 50] });
+  }, [map, locations]);
 
   return null;
 }

@@ -38,7 +38,7 @@ export default function LoginPage() {
         <input
           type="text"
           value={id}
-          onChange={(e) => setId(e.target.value)}
+          onChange={(e) => setId(e.target.value.replace(/\D/g, ""))}
           placeholder="Enter 9 digit ID"
           maxLength={9}
           pattern="\d{9}"

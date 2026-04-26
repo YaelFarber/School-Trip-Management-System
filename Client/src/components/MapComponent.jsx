@@ -1,7 +1,8 @@
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
+// blue
 const markerIcon = new L.Icon({
   iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
   iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
@@ -10,21 +11,28 @@ const markerIcon = new L.Icon({
   iconAnchor: [12, 41],
 });
 
-function formatDateTime(value) {
-  return new Date(value).toLocaleString("he-IL", {
-    dateStyle: "short",
-    timeStyle: "short",
-  });
-}
+// red
+const farMarkerIcon = new L.Icon({
+  iconUrl: "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png",
+  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+});
 
-function decimalToDMS(decimal) {
-  const abs = Math.abs(Number(decimal));
-  const degrees = Math.floor(abs);
-  const minutesFloat = (abs - degrees) * 60;
-  const minutes = Math.floor(minutesFloat);
-  const seconds = ((minutesFloat - minutes) * 60).toFixed(2);
+// auto zoom to see all markers
+function FitBounds({ locations }) {
+  const map = useMap();
 
-  return `${degrees}° ${minutes}' ${seconds}"`;
+  if (!locations || locations.length === 0) return null;
+
+  const bounds = locations.map((s) => [
+    Number(s.latitude),
+    Number(s.longitude),
+  ]);
+
+  map.fitBounds(bounds, { padding: [50, 50] });
+
+  return null;
 }
 
 export default function MapComponent({ locations }) {
@@ -41,13 +49,16 @@ export default function MapComponent({ locations }) {
     <div style={{ height: "400px", width: "100%", marginTop: "20px" }}>
       <MapContainer
         center={center}
-        zoom={15}
+        zoom={13}
+        scrollWheelZoom={true}
         style={{
           height: "100%",
           width: "100%",
           borderRadius: "12px",
         }}
       >
+        <FitBounds locations={locations} />
+
         <TileLayer
           attribution='&copy; OpenStreetMap contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -60,7 +71,7 @@ export default function MapComponent({ locations }) {
               Number(student.latitude),
               Number(student.longitude),
             ]}
-            icon={markerIcon}
+            icon={student.is_far ? farMarkerIcon : markerIcon}
           >
             <Popup>
               <div style={{ minWidth: "180px", lineHeight: "1.6" }}>
@@ -68,11 +79,6 @@ export default function MapComponent({ locations }) {
                 <br />
                 Class: {student.class_name}
                 <br />
-                Updated: {formatDateTime(student.at_time)}
-                <hr />
-                Latitude: {decimalToDMS(student.latitude)}
-                <br />
-                Longitude: {decimalToDMS(student.longitude)}
               </div>
             </Popup>
           </Marker>

@@ -24,6 +24,11 @@ SELECT
 FROM STUDENTS s
 JOIN CLASSES c ON s.c_id = c.c_id;
 
+SELECT *
+FROM all_students
+ORDER BY student_name ASC;
+
+
 -- get all teachers
 CREATE VIEW all_teachers AS
 SELECT 
@@ -32,6 +37,11 @@ SELECT
    c.c_name AS class_name
 FROM TEACHERS t
 JOIN CLASSES c ON t.c_id = c.c_id;
+
+SELECT *
+FROM all_teachers
+ORDER BY teacher_name ASC;
+
 
 -- get all students and teachers
 CREATE VIEW all_students_and_teachers AS
@@ -49,10 +59,21 @@ FROM STUDENTS s
 JOIN CLASSES c ON s.c_id = c.c_id;
 
 
+
+SELECT *
+FROM all_students_and_teachers
+ORDER BY full_name ASC;
+
+
 -- get all classes
 CREATE VIEW all_classes AS
 SELECT c_id, c_name AS class_name
 FROM CLASSES;
+
+
+SELECT *
+FROM all_classes
+ORDER BY class_name ASC;
 
 
 -- get students of teacher
@@ -68,6 +89,8 @@ JOIN TEACHERS t ON t.c_id = c.c_id
 WHERE t.t_id_number = $1;
 
 EXECUTE get_students_of_teacher('123456789');
+
+
 
 -- get class id
 PREPARE get_class_id(CHAR) AS
@@ -111,20 +134,15 @@ ORDER BY s.s_id_number, l.at_time DESC;
 SELECT *
 FROM latest_student_locations;
 
--- get latest locations of students of teacher
-PREPARE get_latest_locations_of_my_students(CHAR) AS
-SELECT DISTINCT ON (s.s_id_number)
-  s.s_id AS student_id,
-  s.s_name AS student_name,
-  c.c_name AS class_name,
-  l.longitude,
-  l.latitude,
-  l.at_time
-FROM STUDENTS s
-JOIN CLASSES c ON s.c_id = c.c_id
-JOIN TEACHERS t ON t.c_id = c.c_id
-JOIN LOCATIONS l ON l.s_id_number = s.s_id_number
-WHERE t.t_id_number = $1
-ORDER BY s.s_id_number, l.at_time DESC;
+-- get latest location of each teacher
+CREATE VIEW latest_teacher_locations AS
+SELECT DISTINCT ON (t_id_number)
+  t_id_number,
+  longitude,
+  latitude,
+  at_time
+FROM T_LOCATIONS
+ORDER BY t_id_number, at_time DESC;
 
-EXECUTE get_latest_locations_of_my_students('123456789');
+SELECT * 
+FROM latest_teacher_locations;

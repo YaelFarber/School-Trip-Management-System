@@ -126,3 +126,19 @@ export async function getTeacherStudentLocations(teacher_id) {
 
     return handleResponse(response, "Teacher's student locations retrieval failed");
 }
+
+// get students who are far from the teacher
+export async function getFarStudents(teacher_id, max_km = 3) {
+    const response = await fetch(`${URL}/teachers/${teacher_id}/far-students?max_km=${max_km}`);
+
+    return handleResponse(response, "Far students retrieval failed");
+}
+
+// get students with their distances from the teacher
+export async function getTeacherStudentLocationsWithDistance(teacher_id, max_km = 3) {
+    const response = await fetch(
+        `${URL}/teachers/${teacher_id}/far-students?max_km=${max_km}`
+    );
+
+    return handleResponse(response, "Student distances retrieval failed");
+}

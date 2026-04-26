@@ -72,20 +72,16 @@ export default function AllStudentsPage() {
         <table className="table">
           <thead>
             <tr>
-              <th>Student ID</th>
               <th>Student Name</th>
               <th>ID Number</th>
-              <th>Class ID</th>
               <th>Class Name</th>
             </tr>
           </thead>
           <tbody>
             {students.map((student) => (
               <tr key={student.student_id}>
-                <td>{student.student_id}</td>
                 <td>{student.student_name}</td>
                 <td>{student.student_id_number}</td>
-                <td>{student.class_id}</td>
                 <td>{student.class_name}</td>
               </tr>
             ))}

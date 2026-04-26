@@ -6,6 +6,7 @@ import psycopg2.extras
 from dotenv import load_dotenv
 import os
 from datetime import datetime, timezone
+from math import radians, sin, cos, acos
 
 load_dotenv()
 
@@ -90,6 +91,20 @@ def dms_to_decimal(coord: DMSCoordinate):
 def parse_location_time(raw_time: str):
     dt = datetime.strptime(raw_time, "%Y %m %dT%H:%M:%SZ")
     return dt.replace(tzinfo=timezone.utc)
+
+
+def calculate_distance_km(lat1, lon1, lat2, lon2):
+    earth_radius_km = 6371
+
+    lat1 = radians(float(lat1))
+    lon1 = radians(float(lon1))
+    lat2 = radians(float(lat2))
+    lon2 = radians(float(lon2))
+
+    return earth_radius_km * acos(
+        cos(lat1) * cos(lat2) * cos(lon2 - lon1) +
+        sin(lat1) * sin(lat2)
+    )
 # ------------------------------------------------------
 
 # Home
@@ -216,7 +231,8 @@ def get_students():
                 c.c_id AS class_id,
                 c.c_name AS class_name
             FROM students s
-            JOIN classes c ON s.c_id = c.c_id;
+            JOIN classes c ON s.c_id = c.c_id
+            ORDER BY s.s_name ASC;
             """
         )
 
@@ -338,7 +354,7 @@ def get_classes():
             """
             SELECT c_id, c_name AS class_name
             FROM classes
-            ORDER BY c_id;
+            ORDER BY class_name ASC;
             """
         )
 
@@ -447,7 +463,8 @@ def get_teachers():
                 c.c_id AS class_id,
                 c.c_name AS class_name
             FROM teachers t
-            JOIN classes c ON t.c_id = c.c_id;
+            JOIN classes c ON t.c_id = c.c_id
+            ORDER BY t.t_name ASC;
             """
         )
 
@@ -536,7 +553,9 @@ def get_students_and_teachers():
                 c.c_name AS class_name,
                 'Student' AS type
             FROM students s
-            JOIN classes c ON s.c_id = c.c_id;
+            JOIN classes c ON s.c_id = c.c_id
+
+            ORDER BY full_name ASC;
             """
         )
 
@@ -573,7 +592,8 @@ def get_students_of_teacher(teacher_id: str):
             FROM students s
             JOIN classes c ON s.c_id = c.c_id
             JOIN teachers t ON t.c_id = c.c_id
-            WHERE t.t_id_number = %s;
+            WHERE t.t_id_number = %s
+            ORDER BY s.s_name ASC;
             """,
             (teacher_id,)
         )
@@ -688,6 +708,69 @@ def get_latest_locations_of_my_students(teacher_id: str):
         )
 
         return cur.fetchall()
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    finally:
+        if cur:
+            cur.close()
+        if conn:
+            conn.close()
+
+
+# get all students that got more than 3km away
+@app.get("/teachers/{teacher_id}/far-students")
+def get_far_students(teacher_id: str, max_km: float = 3):
+    conn = None
+    cur = None
+
+    try:
+        conn = get_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
+
+        cur.execute(
+            """
+            SELECT
+                s.student_id,
+                s.student_name,
+                s.class_name,
+                s.longitude AS student_longitude,
+                s.latitude AS student_latitude,
+                t.longitude AS teacher_longitude,
+                t.latitude AS teacher_latitude
+            FROM latest_student_locations s
+            JOIN students st ON s.s_id_number = st.s_id_number
+            JOIN teachers teacher ON teacher.c_id = st.c_id
+            JOIN latest_teacher_locations t ON t.t_id_number = teacher.t_id_number
+            WHERE teacher.t_id_number = %s;
+            """,
+            (teacher_id,)
+        )
+
+        rows = cur.fetchall()
+
+        result = []
+
+        for row in rows:
+            distance_km = calculate_distance_km(
+                row["teacher_latitude"],
+                row["teacher_longitude"],
+                row["student_latitude"],
+                row["student_longitude"]
+            )
+
+            result.append({
+                "student_id": row["student_id"],
+                "student_name": row["student_name"],
+                "class_name": row["class_name"],
+                "latitude": row["student_latitude"],
+                "longitude": row["student_longitude"],
+                "distance_km": round(distance_km, 3),
+                "is_far": distance_km > max_km
+            })
+
+        return result
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

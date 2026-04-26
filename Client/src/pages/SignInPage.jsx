@@ -78,7 +78,7 @@ export default function SignInPage() {
         navigate("/");
       }, 1200);
     } catch (err) {
-      setError(err.message || "Failed to create user.");
+      setError(err.response?.data?.detail || "Failed to create account");
     }
   }
 
@@ -112,6 +112,7 @@ export default function SignInPage() {
           value={formData.id}
           onChange={handleChange}
           maxLength={9}
+          pattern="\d{9}"
           required
           className="input"
         />

@@ -18,7 +18,7 @@ export default function LoginPage() {
       setMessage(data.message);
       navigate("/teachersdashboard");
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.detail || "Login failed");
     }
   }
 
@@ -41,6 +41,7 @@ export default function LoginPage() {
           onChange={(e) => setId(e.target.value)}
           placeholder="Enter 9 digit ID"
           maxLength={9}
+          pattern="\d{9}"
           required
           className="input"
         />

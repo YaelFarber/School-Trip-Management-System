@@ -5,6 +5,9 @@ import psycopg2
 import psycopg2.extras
 from dotenv import load_dotenv
 import os
+
+from typing import Annotated
+from pydantic import StringConstraints
 from datetime import datetime, timezone
 from math import radians, sin, cos, acos
 
@@ -42,15 +45,18 @@ def get_connection():
 
 # Pydantic models
 
+
+IDNumber = Annotated[str, StringConstraints(pattern=r'^\d{9}$')]
+
 class StudentCreate(BaseModel):
     student_name: str
-    student_id_number: constr(pattern=r'^\d{9}$')
+    student_id_number: IDNumber
     class_id: int
 
 
 class TeacherCreate(BaseModel):
     teacher_name: str
-    teacher_id_number: constr(pattern=r'^\d{9}$')
+    teacher_id_number: IDNumber
     class_id: int
 
 
@@ -59,7 +65,7 @@ class ClassCreate(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    id_number: constr(pattern=r'^\d{9}$')
+    id_number: IDNumber
 
 class DMSCoordinate(BaseModel):
     Degrees: str
@@ -73,12 +79,34 @@ class Coordinates(BaseModel):
 
 
 class LocationCreate(BaseModel):
-    ID: constr(pattern=r'^\d{9}$')
+    ID: IDNumber
     Coordinates: Coordinates
     Time: str
 # ------------------------------------------------------
 
 # Helpers
+
+def check_id_number_is_unique(cur, id_number: str):
+    cur.execute(
+        """
+        SELECT id_number
+        FROM (
+            SELECT s_id_number AS id_number FROM students
+            UNION
+            SELECT t_id_number AS id_number FROM teachers
+        ) all_ids
+        WHERE id_number = %s;
+        """,
+        (id_number,)
+    )
+
+    existing_id = cur.fetchone()
+
+    if existing_id:
+        raise HTTPException(
+            status_code=400,
+            detail="This ID number already exists in the system"
+        )
 
 def dms_to_decimal(coord: DMSCoordinate):
     degrees = float(coord.Degrees)
@@ -117,12 +145,12 @@ def home():
 @app.post("/login")
 def login(request: LoginRequest):
     conn = None
-    cur = None
+    cur = None      
 
     try:
         conn = get_connection()
         cur = conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-
+            
         cur.execute(
         """
         SELECT t_name, t_id_number
@@ -147,7 +175,7 @@ def login(request: LoginRequest):
     except Exception as e:
         if conn:
             conn.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Server error. Please try again later.")
 
     finally:
         if cur:
@@ -182,6 +210,8 @@ def create_student(student: StudentCreate):
         class_row = cur.fetchone()
         if not class_row:
             raise HTTPException(status_code=400, detail="Class does not exist")
+
+        check_id_number_is_unique(cur, student.student_id_number)
 
         cur.execute(
             """
@@ -397,6 +427,8 @@ def create_teacher(teacher: TeacherCreate):
         if not class_row:
             raise HTTPException(status_code=400, detail="Class does not exist")
         
+        check_id_number_is_unique(cur, teacher.teacher_id_number)
+
         # Check if class already has a teacher
         cur.execute(
             """

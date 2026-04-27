@@ -16,24 +16,25 @@ In addition, they have the option to view all classes, all teachers, and all stu
 
 Homepage-
 
-<img width="1434" height="860" alt="homepage" src="https://github.com/user-attachments/assets/4b5ee08b-f824-41a4-a3f7-0aaa47bb72a2" />
+<img width="1440" height="789" alt="homepage" src="https://github.com/user-attachments/assets/83dce516-2c5d-4e0d-877c-1eb70c166f6f" />
 
 sign in -
 
 <img width="1440" height="778" alt="signin1" src="https://github.com/user-attachments/assets/e0a5c67c-1590-4442-b541-c704c48600b0" />
 
-<img width="1438" height="813" alt="signin2" src="https://github.com/user-attachments/assets/077411bb-10aa-4c26-9197-e0c325fb2898" />
+<img width="1440" height="788" alt="signin2" src="https://github.com/user-attachments/assets/878f1f31-cfa4-42f7-9b7c-57979e9d8709" />
+
 
 login -
 
-<img width="1440" height="811" alt="login" src="https://github.com/user-attachments/assets/9c731cf5-6dcb-49b3-a993-bf5455bdede5" />
+<img width="1440" height="786" alt="login" src="https://github.com/user-attachments/assets/0222ed1a-dd4d-46b0-b68e-f8d0b9fd1127" />
 
 
 Teacher dashboard - View all her students +
 Location map (a student who has moved away by an air distance of more than 3 km from the teacher will receive a red marker)
 
+<img width="1440" height="786" alt="dashboard" src="https://github.com/user-attachments/assets/c0f62864-5839-459b-90e8-8666cbbc92e4" />
 
-<img width="1440" height="804" alt="dashboard" src="https://github.com/user-attachments/assets/302deb05-2adb-4369-ac19-e7155d80a9a7" />
 
 <img width="1440" height="781" alt="map1" src="https://github.com/user-attachments/assets/6e4c349a-f224-4c3c-abca-9f5d84c4a21d" />
 

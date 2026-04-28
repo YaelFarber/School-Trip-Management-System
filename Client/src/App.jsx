@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 import HomePage from "./pages/HomePage";
+import ProtectedRoute from "./components/ProtectedRoute";
 import LoginPage from "./pages/LoginPage";
 import SignInPage from "./pages/SignInPage";
 import TeachersDashboard from "./pages/TeachersDashboard";
@@ -19,7 +20,7 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signin" element={<SignInPage />} />
 
-        <Route path="/teachersdashboard" element={<TeacherLayout />}>
+        <Route path="/teachersdashboard" element={<ProtectedRoute><TeacherLayout /></ProtectedRoute>}>
           <Route index element={<TeachersDashboard />} />
           <Route path="classes" element={<AllClassesPage />} />
           <Route path="teachers" element={<AllTeachersPage />} />

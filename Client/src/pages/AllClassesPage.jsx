@@ -20,43 +20,31 @@ export default function AllClassesPage() {
   }
 
   return (
-    <PageTable
-      title="All Classes"
-      error={error}
-      columns={["Class ID", "Class Name"]}
-      rows={classes.map((c) => [c.c_id, c.class_name])}
-      emptyText="No classes found."
-    />
-  );
-}
-
-function PageTable({ title, error, columns, rows, emptyText }) {
-  return (
     <div className="page page-md">
-      <h1 className="page-title">{title}</h1>
+      <h1 className="page-title">All Classes</h1>
+
       {error && <p className="text-error">{error}</p>}
 
       <div className="table-card">
         <table className="table">
           <thead>
             <tr>
-              {columns.map((col) => (
-                <th key={col}>{col}</th>
-              ))}
+              <th>Class ID</th>
+              <th>Class Name</th>
             </tr>
-          </thead>
+          </thead>  
+
           <tbody>
-            {rows.map((row, i) => (
-              <tr key={i}>
-                {row.map((cell, j) => (
-                  <td key={j}>{cell}</td>
-                ))}
+            {classes.map((c) => (
+              <tr key={c.c_id}>
+                <td>{c.c_id}</td>
+                <td>{c.class_name}</td>
               </tr>
             ))}
           </tbody>
         </table>
 
-        {rows.length === 0 && !error && <p>{emptyText}</p>}
+        {classes.length === 0 && !error && <p>No classes found.</p>}
       </div>
     </div>
   );

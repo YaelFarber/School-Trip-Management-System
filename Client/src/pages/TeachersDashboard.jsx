@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getStudentsByTeacher, getTeacherStudentLocationsWithDistance, } from "../services/api";
+import { getStudentsWithDistance, getStudentsByTeacher } from "../services/api";
 import MapComponent from "../components/MapComponent";
 
 export default function TeachersDashboard() {
@@ -28,7 +28,7 @@ export default function TeachersDashboard() {
       setTeacherInfo(teacher);
 
       const studentsData = await getStudentsByTeacher(teacher.teacher_id_number);
-      const locationsData = await getTeacherStudentLocationsWithDistance(teacher.teacher_id_number);
+      const locationsData = await getStudentsWithDistance(teacher.teacher_id_number);
 
       setStudents(studentsData);
       setLocations(locationsData);

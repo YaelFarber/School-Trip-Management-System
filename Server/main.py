@@ -739,8 +739,7 @@ def get_latest_locations_of_my_students(teacher_id: IDNumber):
         if conn:
             conn.close()
 
-
-# get all students that got more than 3km away
+# get all students and those who got more than 3km away will be marked is_far = true
 @app.get("/teachers/{teacher_id}/far-students")
 def get_far_students(teacher_id: IDNumber, max_km: float = 3):
     conn = None
